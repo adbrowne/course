@@ -178,8 +178,7 @@ lift4 f a b c d =
   f a
   -> f b
   -> f b
-(*>) =
-  error "todo"
+(*>) l r = (\_ -> id) <$> l <*> r
 
 -- | Sequence, discarding the value of the second argument.
 -- Pronounced, left apply.
@@ -198,8 +197,7 @@ lift4 f a b c d =
   f b
   -> f a
   -> f b
-(<*) =
-  error "todo"
+(<*) l r = (\a -> \_ -> a) <$> l <*> r
 
 -----------------------
 -- SUPPORT LIBRARIES --
