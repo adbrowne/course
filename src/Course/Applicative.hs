@@ -37,36 +37,31 @@ class Apply f => Applicative f where
   (a -> b)
   -> f a
   -> f b
-(<$>) =
-  error "todo"
+(<$>) f a = pure f <*> a
 
 -- | Insert into Id.
 --
 -- prop> pure x == Id x
 instance Applicative Id where
-  pure =
-    error "todo"
+  pure = Id
 
 -- | Insert into a List.
 --
 -- prop> pure x == x :. Nil
 instance Applicative List where
-  pure =
-    error "todo"
+  pure x = x:.Nil
 
 -- | Insert into an Optional.
 --
 -- prop> pure x == Full x
 instance Applicative Optional where
-  pure =
-    error "todo"
+  pure = Full
 
 -- | Insert into a constant function.
 --
 -- prop> pure x y == x
 instance Applicative ((->) t) where
-  pure =
-    error "todo"
+  pure x = \_ -> x
 
 -- | Sequences a list of structures to a structure of list.
 --
@@ -88,8 +83,8 @@ sequence ::
   Applicative f =>
   List (f a)
   -> f (List a)
-sequence =
-  error "todo"
+sequence Nil = pure Nil
+sequence (x:.xs) = (:.) <$> x <*> (sequence xs)
 
 -- | Replicate an effect a given number of times.
 --
@@ -112,8 +107,8 @@ replicateA ::
   Int
   -> f a
   -> f (List a)
-replicateA =
-  error "todo"
+replicateA 0 _ = pure Nil
+replicateA i a = (:.) <$> a <*> (replicateA (i-1) a)
 
 -- | Filter a list with a predicate that produces an effect.
 --
@@ -136,8 +131,15 @@ filtering ::
   (a -> f Bool)
   -> List a
   -> f (List a)
-filtering =
-  error "todo"
+filtering _ Nil = pure Nil
+filtering f (x:.xs) = 
+  (blah f x) <*> (filtering f xs)
+  where 
+    blah :: Applicative f => (a -> f Bool) -> a -> f (List a -> List a)
+    blah f' x' = (foo x') <$> (f' x')
+    foo :: a -> Bool -> (List a) -> (List a)
+    foo x' v a = if v then (x':.a)
+                else a
 
 -----------------------
 -- SUPPORT LIBRARIES --
