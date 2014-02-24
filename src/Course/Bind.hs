@@ -57,13 +57,21 @@ infixr 1 =<<
 --
 -- >>> ((*) <*> (+2)) 3
 -- 15
+
+--  (=<<) ::
+--    (a -> f b)
+--    -> f a
+--    -> f b
+
 (<*>) ::
   Bind f =>
   f (a -> b)
   -> f a
   -> f b
-(<*>) =
-  error "todo"
+(<*>) f a = 
+  (mapValues a) =<< f 
+  where mapValues v x = x <$> v
+  
 
 infixl 4 <*>
 
@@ -72,32 +80,31 @@ infixl 4 <*>
 -- >>> (\x -> Id(x+1)) =<< Id 2
 -- Id 3
 instance Bind Id where
-  (=<<) =
-    error "todo"
+  (=<<) f (Id v) = f v
+    
 
 -- | Binds a function on a List.
 --
 -- >>> (\n -> n :. n :. Nil) =<< (1 :. 2 :. 3 :. Nil)
 -- [1,1,2,2,3,3]
 instance Bind List where
-  (=<<) =
-    error "todo"
+  (=<<) _ Nil     = Nil
+  (=<<) f (x:.xs) = (f x) ++ (f =<< xs)
 
 -- | Binds a function on an Optional.
 --
 -- >>> (\n -> Full (n + n)) =<< Full 7
 -- Full 14
 instance Bind Optional where
-  (=<<) =
-    error "todo"
+  (=<<) _ Empty = Empty
+  (=<<) f (Full x) = f x
 
 -- | Binds a function on the reader ((->) t).
 --
 -- >>> ((*) =<< (+10)) 7
 -- 119
 instance Bind ((->) t) where
-  (=<<) =
-    error "todo"
+  (=<<) f v x = f (v x) x
 
 -- | Flattens a combined structure to a single structure.
 --
