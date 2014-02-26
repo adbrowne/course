@@ -123,8 +123,7 @@ join ::
   Bind f =>
   f (f a)
   -> f a
-join =
-  error "todo"
+join = (=<<) id
 
 -- | Implement a flipped version of @(=<<)@, however, use only
 -- @join@ and @(<$>)@.
@@ -137,8 +136,7 @@ join =
   f a
   -> (a -> f b)
   -> f b
-(>>=) =
-  error "todo"
+(>>=) a f = join $ (\x -> (f x)) <$> a
 
 infixl 1 >>=
 
@@ -153,8 +151,7 @@ infixl 1 >>=
   -> (a -> f b)
   -> a
   -> f c
-(<=<) =
-  error "todo"
+(<=<) a b i = a =<< (b i) 
 
 infixr 1 <=<
 
