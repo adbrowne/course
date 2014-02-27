@@ -76,9 +76,8 @@ run ::
   Chars
   -> IO ()
 run masterFile =
-  getFile masterFile >>= blah
-  where 
-    blah (_,content) = getFiles (lines content) >>= printFiles
+  readFile masterFile >>= \content -> 
+  getFiles (lines content) >>= printFiles
 
 getFiles ::
   List FilePath
@@ -93,14 +92,14 @@ getFile filePath = readFile filePath >>= (\c -> pure (filePath, c))
 printFiles ::
   List (FilePath, Chars)
   -> IO ()
-printFiles Nil = pure ()
-printFiles ((filePath, chars):.xs) = printFile filePath chars >>= \_ -> printFiles xs
+printFiles = void . sequence . ((<$>) printFile')
+  where
+    printFile' (filePath, chars) = printFile filePath chars
 
 printFile ::
   FilePath
   -> Chars
   -> IO ()
 printFile path chars =
-  putStrLn ("============ " ++ path) >>= \_ ->
-  putStrLn chars
+  putStrLn ("============ " ++ path) >> putStrLn chars
 
