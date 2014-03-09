@@ -152,8 +152,10 @@ firstRepeat ::
   Ord a =>
   List a
   -> Optional a
-firstRepeat =
-  error "todo"
+firstRepeat a =
+  let p x = (\s -> (const $ pure (S.member x s)) =<< put (S.insert x s)) =<< get in
+  let state = runState (findM p $ a) S.empty in
+  fst state 
 
 -- | Remove all duplicate elements in a `List`.
 -- /Tip:/ Use `filtering` and `State` with a @Data.Set#Set@.
