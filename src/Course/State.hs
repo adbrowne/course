@@ -196,5 +196,12 @@ distinct a =
 isHappy ::
   Integer
   -> Bool
-isHappy =
-  error "todo"
+isHappy a =
+  let state = exec (findM p $ valueList) S.empty in
+  S.member 1 state
+  where 
+    p x = (\s -> (const $ pure (x == 1 || S.member x s)) =<< put (S.insert x s)) =<< get
+    valueList = produce sumOfSquares $ a
+    sumOfSquares :: Integer -> Integer
+    sumOfSquares a' = toInteger . sum $ (\x -> x * x) <$> digitList a'
+    digitList a' = listh $ (digitToInt) <$> show a'
