@@ -35,29 +35,44 @@ newtype State s a =
 -- >>> runState ((+1) <$> pure 0) 0
 -- (1,0)
 instance Functor (State s) where
-  (<$>) =
-      error "todo"
+  (<$>) f s = 
+    State { runState = \s' -> (mapState s', s') }
+    where 
+      mapState = f . fst . (runState s)
 
 -- | Implement the `Apply` instance for `State s`.
 -- >>> runState (pure (+1) <*> pure 0) 0
 -- (1,0)
 instance Apply (State s) where
-  (<*>) =
-    error "todo"
+  (<*>) f s =
+    s { runState = \s2 -> (mapOutput s2, s2) }
+    where 
+      existingState = (runState s) 
+      getFuncOut = runState f
+      mapOutput s2 = f' a
+        where 
+          (a, _) = existingState s2
+          (f',_) = getFuncOut s2
 
 -- | Implement the `Applicative` instance for `State s`.
 -- >>> runState (pure 2) 0
 -- (2,0)
 instance Applicative (State s) where
-  pure =
-    error "todo"
+  pure i = State { runState = \s -> (i,s) } 
 
 -- | Implement the `Bind` instance for `State s`.
 -- >>> runState ((const $ put 2) =<< put 1) 0
 -- ((),2)
+-- >>> runState ((\s -> put (1+s)) =<< get) 4
+-- ((),5)
 instance Bind (State s) where
-  (=<<) =
-    error "todo"
+  (=<<) f a =
+    State { runState = \v -> blah f a v }
+
+blah :: (a -> State s b) -> (State s a) -> s -> (b, s)
+blah f a2 v = runState (f a) sv
+  where 
+  (a, sv) = (runState a2 v) 
 
 instance Monad (State s) where
 
@@ -68,8 +83,7 @@ exec ::
   State s a
   -> s
   -> s
-exec =
-  error "todo"
+exec s = snd . (runState s)
 
 -- | Run the `State` seeded with `s` and retrieve the resulting value.
 --
@@ -78,8 +92,7 @@ eval ::
   State s a
   -> s
   -> a
-eval =
-  error "todo"
+eval s = fst . (runState s)
 
 -- | A `State` where the state also distributes into the produced value.
 --
@@ -87,8 +100,8 @@ eval =
 -- (0,0)
 get ::
   State s s
-get =
-  error "todo"
+get = State { runState = (\x -> (x,x)) }
+  
 
 -- | A `State` where the resulting state is seeded with the given value.
 --
@@ -97,8 +110,7 @@ get =
 put ::
   s
   -> State s ()
-put =
-  error "todo"
+put v = State { runState = \_ -> ((),v) }
 
 -- | Find the first element in a `List` that satisfies a given predicate.
 -- It is possible that no element is found, hence an `Optional` result.
@@ -119,8 +131,15 @@ findM ::
   (a -> f Bool)
   -> List a
   -> f (Optional a)
-findM =
-  error "todo"
+findM _ Nil = pure Empty
+findM p (x:.xs) =
+  inner =<< (p x)
+  where 
+    inner t = 
+      if t then
+        pure $ Full x
+      else
+        findM p xs
 
 -- | Find the first element in a `List` that repeats.
 -- It is possible that no element repeats, hence an `Optional` result.
