@@ -33,6 +33,13 @@ data List t =
   | t :. List t
   deriving (Eq, Ord)
 
+fib :: Integer -> Integer
+fib 0 = 1
+fib 1 = 1
+fib n =
+  fib (n - 1) +
+  fib (n - 2)
+
 -- Right-associative
 infixr 5 :.
 
@@ -72,8 +79,8 @@ headOr ::
   a
   -> List a
   -> a
-headOr =
-  error "todo"
+headOr a Nil = a
+headOr _ (x:._) = x
 
 -- | The product of the elements of a list.
 --
@@ -86,7 +93,7 @@ product ::
   List Int
   -> Int
 product =
-  error "todo"
+  foldRight (*) 1
 
 -- | Sum the elements of the list.
 --
@@ -101,7 +108,7 @@ sum ::
   List Int
   -> Int
 sum =
-  error "todo"
+  foldRight (+) 0
 
 -- | Return the length of the list.
 --
@@ -113,7 +120,7 @@ length ::
   List a
   -> Int
 length =
-  error "todo"
+  foldLeft (\s _ -> s + 1) 0
 
 -- | Map the given function on each element of the list.
 --
@@ -127,8 +134,10 @@ map ::
   (a -> b)
   -> List a
   -> List b
-map =
-  error "todo"
+map _ Nil = Nil
+map f (x :. xs) =
+  (f x) :.
+  (map f xs)
 
 -- | Return elements satisfying the given predicate.
 --
@@ -144,8 +153,10 @@ filter ::
   (a -> Bool)
   -> List a
   -> List a
-filter =
-  error "todo"
+filter _ Nil = Nil
+filter f (x:.xs) =
+  case f x of True -> x :. (filter f xs)
+              False -> filter f xs
 
 -- | Append two lists to a new list.
 --
@@ -163,8 +174,9 @@ filter =
   List a
   -> List a
   -> List a
-(++) =
-  error "todo"
+(++) Nil ys = ys
+(++) (x:.xs) ys =
+  x:.(xs ++ ys)
 
 infixr 5 ++
 
@@ -181,8 +193,9 @@ infixr 5 ++
 flatten ::
   List (List a)
   -> List a
-flatten =
-  error "todo"
+flatten Nil = Nil
+flatten (xs:.xxs) =
+  xs ++ (flatten xxs)
 
 -- | Map a function then flatten to a list.
 --
@@ -198,8 +211,9 @@ flatMap ::
   (a -> List b)
   -> List a
   -> List b
-flatMap =
-  error "todo"
+flatMap _ Nil = Nil
+flatMap f (x:.xs) =
+  (f x) ++ (flatMap f xs)
 
 -- | Flatten a list of lists to a list (again).
 -- HOWEVER, this time use the /flatMap/ function that you just wrote.
@@ -209,11 +223,11 @@ flattenAgain ::
   List (List a)
   -> List a
 flattenAgain =
-  error "todo"
+  flatMap id
 
 -- | Convert a list of optional values to an optional list of values.
 --
--- * If the list contains all `Full` values, 
+-- * If the list contains all `Full` values,
 -- then return `Full` list of values.
 --
 -- * If the list contains one or more `Empty` values,
@@ -236,8 +250,11 @@ flattenAgain =
 seqOptional ::
   List (Optional a)
   -> Optional (List a)
-seqOptional =
-  error "todo"
+seqOptional list = go Nil list
+  where go :: List a -> List (Optional a) -> Optional (List a)
+        go acc Nil = Full (reverse acc)
+        go _ (Empty :. _) = Empty
+        go acc (Full x :. xs) = go (x :. acc) xs
 
 -- | Find the first element in the list matching the predicate.
 --
@@ -259,9 +276,10 @@ find ::
   (a -> Bool)
   -> List a
   -> Optional a
-find =
-  error "todo"
-
+find _ Nil = Empty
+find f (x :. xs) =
+  case (f x) of True -> Full x
+                False -> find f xs
 -- | Determine if the length of the given list is greater than 4.
 --
 -- >>> lengthGT4 (1 :. 3 :. 5 :. Nil)
@@ -279,7 +297,11 @@ lengthGT4 ::
   List a
   -> Bool
 lengthGT4 =
-  error "todo"
+  isZero 5
+  where
+        isZero 0 _ = True
+        isZero _ Nil = False
+        isZero c (_ :. xs) = isZero (c - 1) xs
 
 -- | Reverse a list.
 --
@@ -295,8 +317,11 @@ lengthGT4 =
 reverse ::
   List a
   -> List a
-reverse =
-  error "todo"
+reverse ys =
+  loop Nil ys
+  where
+        loop acc Nil = acc
+        loop acc (x :. xs) = loop (x:.acc) xs
 
 -- | Produce an infinite `List` that seeds with the given value at its head,
 -- then runs the given function for subsequent elements
@@ -310,23 +335,10 @@ produce ::
   (a -> a)
   -> a
   -> List a
-produce =
-  error "todo"
-
--- | Do anything other than reverse a list.
--- Is it even possible?
---
--- >>> notReverse Nil
--- []
---
--- prop> let types = x :: List Int in notReverse x ++ notReverse y == notReverse (y ++ x)
---
--- prop> let types = x :: Int in notReverse (x :. Nil) == x :. Nil
-notReverse ::
-  List a
-  -> List a
-notReverse =
-  error "todo"
+produce f a =
+  let b = f a
+      in
+   a :. (produce f b)
 
 largeList ::
   List Int
