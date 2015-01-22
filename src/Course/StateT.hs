@@ -149,7 +149,7 @@ execT ::
   -> s
   -> f s
 execT sa s =
-  snd <$> runStateT sa s 
+  snd <$> runStateT sa s
 
 -- | Run the `State` seeded with `s` and retrieve the resulting state.
 exec' ::
@@ -158,7 +158,7 @@ exec' ::
   -> s
 exec' sa s =
   let Id s = execT sa s in
-  s 
+  s
 
 -- | Run the `StateT` seeded with `s` and retrieve the resulting value.
 evalT ::
@@ -167,7 +167,7 @@ evalT ::
   -> s
   -> f a
 evalT sa s =
-  fst <$> runStateT sa s 
+  fst <$> runStateT sa s
 
 -- | Run the `State` seeded with `s` and retrieve the resulting value.
 eval' ::
@@ -176,7 +176,7 @@ eval' ::
   -> a
 eval' sa s =
   let Id a = evalT sa s in
-  a 
+  a
 
 -- | A `StateT` where the state also distributes into the produced value.
 --
@@ -246,7 +246,7 @@ distinctF xs =
     applyState a s =
         case a > 100 of
         True -> Empty
-        _ -> 
+        _ ->
             case S.member a s of
             True -> pure (False, s)
             False -> pure (True, S.insert a s)
@@ -265,10 +265,10 @@ data OptionalT f a =
 instance Functor f => Functor (OptionalT f) where
   (<$>) f a =
     OptionalT runOptional'
-     where 
+     where
        fo (Full x) = Full (f x)
        fo Empty = Empty
-       runOptional' = 
+       runOptional' =
         let fa = runOptionalT a in
         let fb = fo <$> fa in
         fb
@@ -280,10 +280,10 @@ instance Functor f => Functor (OptionalT f) where
 instance Apply f => Apply (OptionalT f) where
   (<*>) af aa =
     OptionalT runOptional'
-     where 
+     where
        appF (Full f) (Full a) = Full (f a)
        appF _ _ = Empty
-       runOptional' = 
+       runOptional' =
         let aff = runOptionalT af in
         let aaa = runOptionalT aa in
         appF <$> aff <*> aaa
@@ -300,11 +300,11 @@ instance Applicative f => Applicative (OptionalT f) where
 instance Monad f => Bind (OptionalT f) where
   (=<<) (f :: a -> OptionalT f b) ma =
     OptionalT runOptional'
-     where 
+     where
        blah :: Optional a -> f (Optional b)
        blah (Full a) = runOptionalT (f a)
        blah Empty = pure Empty
-       runOptional' = 
+       runOptional' =
         let aaa = runOptionalT ma in
         let b = blah <$> aaa in
         join b
@@ -321,16 +321,19 @@ data Logger l a =
 -- >>> (+3) <$> Logger (listh [1,2]) 3
 -- Logger [1,2] 6
 instance Functor (Logger l) where
-  (<$>) =
-    error "todo19"
+  (<$>) f x =
+    let Logger list a = x
+    in Logger list (f a)
 
 -- | Implement the `Apply` instance for `Logger`.
 --
 -- >>> Logger (listh [1,2]) (+7) <*> Logger (listh [3,4]) 3
 -- Logger [1,2,3,4] 10
 instance Apply (Logger l) where
-  (<*>) =
-    error "todo20"
+  (<*>) lf lx =
+    let Logger xs f = lf in
+    let Logger ys x = lx in
+    Logger (xs ++ ys) (f x)
 
 -- | Implement the `Applicative` instance for `Logger`.
 --
@@ -338,7 +341,7 @@ instance Apply (Logger l) where
 -- Logger [] "table"
 instance Applicative (Logger l) where
   pure =
-    error "todo21"
+    Logger Nil
 
 -- | Implement the `Bind` instance for `Logger`.
 -- The `bind` implementation must append log values to maintain associativity.
@@ -346,8 +349,10 @@ instance Applicative (Logger l) where
 -- >>> (\a -> Logger (listh [4,5]) (a+3)) =<< Logger (listh [1,2]) 3
 -- Logger [1,2,4,5] 6
 instance Bind (Logger l) where
-  (=<<) =
-    error "todo22"
+  (=<<) f ma =
+    let Logger lista a = ma in
+    let Logger listb b = f a in
+    Logger (lista ++ listb) b
 
 instance Monad (Logger l) where
 
@@ -359,8 +364,14 @@ log1 ::
   l
   -> a
   -> Logger l a
-log1 =
-  error "todo23"
+log1 l1 =
+  Logger (l1 :. Nil)
+
+addLog :: Chars -> OptionalT (Logger Chars) (Bool, S.Set a) -> OptionalT (Logger Chars) (Bool, S.Set a)
+addLog msg a =
+  foo <*> a
+  where
+    foo = OptionalT $ log1 msg (Full id)
 
 -- | Remove all duplicate integers from a list. Produce a log as you go.
 -- If there is an element above 100, then abort the entire computation and produce no result.
@@ -380,5 +391,28 @@ distinctG ::
   (Integral a, Show a) =>
   List a
   -> Logger Chars (Optional (List a))
-distinctG =
-  error "todo24"
+distinctG xs =
+  let
+    p a = StateT (applyState a)
+    opt = evalT (filtering p xs) S.empty
+  in  runOptionalT opt
+   where
+     normal a s =
+       let
+         result = 
+            case S.member a s of
+            True -> pure (False, s)
+            False -> pure (True, S.insert a s) 
+       in
+         case even a of
+         True ->
+           let 
+             msg = ("even number: " :: List Char) ++ (show' a)
+           in addLog msg result
+         False -> result
+     applyState a s =
+       case a > 100 of
+       False -> normal a s
+       True ->
+         let msg = "aborting > 100: " ++ (show' a)
+         in OptionalT $ log1 msg Empty
