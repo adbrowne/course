@@ -367,15 +367,16 @@ log1 ::
 log1 l1 =
   Logger (l1 :. Nil)
 
-liftOptional :: f (a -> b) -> OptionalT f (a -> b)
+liftOptional :: Functor f => f a -> OptionalT f a
 liftOptional f =
-  OptionalT $ (\x -> Full x) <$> f
+  let firstPart = (pure <$> f)
+  in OptionalT firstPart
 
 addLog :: Chars -> OptionalT (Logger Chars) (Bool, S.Set a) -> OptionalT (Logger Chars) (Bool, S.Set a)
 addLog msg a =
   foo <*> a
   where
-    foo = OptionalT $ log1 msg (Full id)
+    foo = liftOptional $ log1 msg id
 
 -- | Remove all duplicate integers from a list. Produce a log as you go.
 -- If there is an element above 100, then abort the entire computation and produce no result.
