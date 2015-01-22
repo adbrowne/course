@@ -367,6 +367,10 @@ log1 ::
 log1 l1 =
   Logger (l1 :. Nil)
 
+liftOptional :: f (a -> b) -> OptionalT f (a -> b)
+liftOptional f =
+  OptionalT $ (\x -> Full x) <$> f
+
 addLog :: Chars -> OptionalT (Logger Chars) (Bool, S.Set a) -> OptionalT (Logger Chars) (Bool, S.Set a)
 addLog msg a =
   foo <*> a
