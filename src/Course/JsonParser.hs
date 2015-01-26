@@ -154,7 +154,7 @@ jsonNumber =
 jsonTrue ::
   Parser Chars
 jsonTrue =
-  error "todo"
+  stringTok "true"
 
 -- | Parse a JSON false literal.
 --
@@ -168,7 +168,7 @@ jsonTrue =
 jsonFalse ::
   Parser Chars
 jsonFalse =
-  error "todo"
+  stringTok "false"
 
 -- | Parse a JSON null literal.
 --
@@ -182,7 +182,7 @@ jsonFalse =
 jsonNull ::
   Parser Chars
 jsonNull =
-  error "todo"
+  stringTok "null"
 
 -- | Parse a JSON array.
 --
