@@ -675,8 +675,7 @@ instance Applicative Parser where
   pure ::
     a
     -> Parser a
-  pure =
-    error "todo22"
+  pure = valueParser
 
 -- | Write a Bind instance for a @Parser@.
 instance Bind Parser where
@@ -685,6 +684,6 @@ instance Bind Parser where
     -> Parser a
     -> Parser b
   (=<<) =
-    error "todo23"
+    bindParser
 
 instance Monad Parser where
