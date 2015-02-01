@@ -15,6 +15,7 @@ import Course.Applicative
 import Course.Bind
 import Course.List
 import Course.Optional
+import Data.Ratio
 
 -- $setup
 -- >>> :set -XOverloadedStrings
@@ -111,7 +112,23 @@ toSpecialCharacter c =
 jsonString ::
   Parser Chars
 jsonString =
-  error "todo"
+  let 
+    quoteP = is '"'
+  in
+    between quoteP quoteP (list stringToken) 
+  where 
+   stringToken = 
+    special ||| unicode ||| normal
+   normal = noneof $ listh ['"', '\\']
+   special = 
+    bindParser (\_ -> mapParser toSpecialCharacter character) (is '\\')
+    `flbindParser`
+    (\x ->
+      case x of
+      Full specialChar -> valueParser (fromSpecialCharacter specialChar)
+      Empty -> failed)
+   unicode =
+    bindParser (\_ -> hexu) (is '\\')
 
 -- | Parse a JSON rational.
 --
@@ -140,7 +157,13 @@ jsonString =
 jsonNumber ::
   Parser Rational
 jsonNumber =
-  error "todo"
+  let 
+    run cs = 
+      case readFloats cs of
+      Full (v, rest) -> Result rest v
+      Empty -> ErrorResult Failed
+  in
+    P run
 
 -- | Parse a JSON true literal.
 --
@@ -205,7 +228,7 @@ jsonNull =
 jsonArray ::
   Parser (List JsonValue)
 jsonArray =
-  error "todo"
+  betweenSepbyComma '[' ']' jsonValue
 
 -- | Parse a JSON object.
 --
@@ -225,7 +248,14 @@ jsonArray =
 jsonObject ::
   Parser Assoc
 jsonObject =
-  error "todo"
+  betweenSepbyComma '{' '}' kv
+  where
+    kv = 
+      jsonString `flbindParser` (\key ->
+        spaces >>> 
+          (charTok ':') `flbindParser` (\_ ->
+            jsonValue `flbindParser` (\v -> tok $ valueParser (key, v)))
+      )
 
 -- | Parse a JSON value.
 --
@@ -242,7 +272,19 @@ jsonObject =
 jsonValue ::
   Parser JsonValue
 jsonValue =
-   error "todo"
+   JsonString `mapParser` jsonString
+   |||
+   (JsonRational False) `mapParser` jsonNumber
+   |||
+   JsonObject `mapParser` jsonObject
+   |||
+   JsonArray `mapParser` jsonArray
+   |||
+   (const JsonTrue) `mapParser` jsonTrue
+   |||
+   (const JsonFalse) `mapParser` jsonFalse
+   |||
+   (const JsonNull) `mapParser` jsonNull
 
 -- | Read a file into a JSON value.
 --
@@ -250,5 +292,6 @@ jsonValue =
 readJsonValue ::
   Filename
   -> IO (ParseResult JsonValue)
-readJsonValue =
-  error "todo"
+readJsonValue filename = do
+  contents <- readFile filename
+  return $ parse jsonValue contents
