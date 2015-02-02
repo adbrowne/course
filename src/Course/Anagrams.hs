@@ -32,8 +32,13 @@ anagrams ::
   Chars
   -> Filename
   -> IO (List Chars)
-anagrams =
-  error "todo"
+anagrams xs filename =
+  let
+    contents = readFile filename
+    dictionary = lines <$> contents
+    ps = permutations xs
+  in
+    intersectBy equalIgnoringCase ps <$> dictionary
 
 -- Compare two strings for equality, ignoring case
 equalIgnoringCase ::
@@ -41,4 +46,4 @@ equalIgnoringCase ::
   -> Chars
   -> Bool
 equalIgnoringCase =
-  error "todo"
+  on (==) (map toLower)
