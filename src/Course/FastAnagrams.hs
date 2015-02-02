@@ -14,8 +14,11 @@ fastAnagrams ::
   Chars
   -> Filename
   -> IO (List Chars)
-fastAnagrams =
-  error "todo"
+fastAnagrams xs filename =
+  let
+    ps = S.fromList . hlist . permutations 
+  in
+    ((filter . (flip S.member)) (ps xs)) . lines <$> readFile filename
 
 newtype NoCaseString =
   NoCaseString {
