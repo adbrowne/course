@@ -84,7 +84,10 @@ data Op =
 convertInteractive ::
   IO ()
 convertInteractive =
-  error "todo"
+  putStrLn "Enter some text:" >-
+  getLine >>= (\l ->
+  (putStrLn (listh "")) >-
+  putStrLn (map toUpper l))
 
 -- |
 --
@@ -112,7 +115,15 @@ convertInteractive =
 reverseInteractive ::
   IO ()
 reverseInteractive =
-  error "todo"
+  putStrLn "Gimme an input filename:" >-
+  getLine >>= \inputFilename ->
+  putStrLn "Gimme an output filename:" >-
+  getLine >>= \outputFilename ->
+  readFile inputFilename >>= \filetext ->
+  let reversed = reverse filetext in
+  writeFile outputFilename reversed >-
+  pure ()
+               
 
 -- |
 --
@@ -138,7 +149,14 @@ reverseInteractive =
 encodeInteractive ::
   IO ()
 encodeInteractive =
-  error "todo"
+  putStrLn "Gimme a url:" >-
+  getLine >>= \url ->
+  putStrLn (encode =<< url)
+  where
+    encode ' ' = "%20"
+    encode '\t' = "%09"
+    encode '\"' = "%22"
+    encode c = c :. Nil
 
 interactive ::
   IO ()
