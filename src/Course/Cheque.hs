@@ -25,6 +25,7 @@ import Course.List
 import Course.Functor
 import Course.Apply
 import Course.Bind
+import Course.Parser
 
 -- $setup
 -- >>> :set -XOverloadedStrings
@@ -187,7 +188,7 @@ data Digit =
   | Seven
   | Eight
   | Nine
-  deriving (Eq, Enum, Bounded)
+  deriving (Eq, Enum, Bounded, Show)
 
 showDigit ::
   Digit
@@ -218,8 +219,31 @@ data Digit3 =
   D1 Digit
   | D2 Digit Digit
   | D3 Digit Digit Digit
-  deriving Eq
+  deriving (Eq, Show)
 
+
+-- | Group digits into threes
+--
+-- >>> toDigit3 $ listh [Zero]
+-- [D1 Zero]
+-- >>> toDigit3 $ listh [One,Zero]
+-- [D2 One Zero]
+-- >>> toDigit3 $ listh [One,Zero,Zero]
+-- [D3 One Zero Zero]
+-- >>> toDigit3 $ listh [One,Zero,Zero,Zero]
+-- [D1 One,D3 Zero Zero Zero]
+toDigit3 :: List Digit -> List Digit3
+toDigit3 xs =
+   let
+     revxs = reverse xs
+     collectDigits :: List Digit -> List Digit3
+     collectDigits Nil = Nil
+     collectDigits (x :. Nil) = D1 x :. Nil
+     collectDigits (x :. y :. Nil) = D2 y x :. Nil
+     collectDigits (x :. y :. z :. ys) = (D3 z y x) :. (collectDigits ys)
+   in
+     reverse $ collectDigits revxs
+     
 -- Possibly convert a character to a digit.
 fromChar ::
   Char
@@ -246,6 +270,139 @@ fromChar '9' =
   Full Nine
 fromChar _ =
   Empty
+
+parseAmount :: Chars -> (List Digit, List Digit)
+parseAmount cs =
+  let
+    digitFilter (Full x) = x :. Nil
+    digitFilter Empty = Nil
+
+    value chars =
+      case parse parseWhole chars of
+      Result _ (d, c) ->
+          (d >>= digitFilter, c >>= digitFilter)
+      ErrorResult _ -> (Nil,Nil)
+  in value cs
+  where
+    notPeriod = satisfy (/= '.')
+    parseWhole :: Parser (List (Optional Digit), List (Optional Digit))
+    parseWhole =
+      parseDigit >>= \d ->
+      (centParser ||| valueParser Nil) >>= \c ->
+      valueParser (d, c)
+    parseDigit =
+      list $ mapParser fromChar notPeriod
+    parseAllDigits =
+      list $ mapParser fromChar character
+    centParser =
+      (is '.') >>> parseAllDigits -- ignore any more periods
+    
+digitsToWords :: List Digit -> Chars
+digitsToWords Nil = "zero"
+digitsToWords (x :. Nil) = showDigit x
+digitsToWords (x :. xs) = showDigit x ++ " " ++ (digitsToWords xs)
+
+roundCents :: List Digit -> List Digit
+roundCents Nil = Nil
+roundCents (Zero :. Nil) = Zero :. Nil
+roundCents (Zero :. y :. Nil) = y :. Nil
+roundCents (x :. Nil) = x :. Zero :. Nil
+roundCents (Zero :. Zero :. xs) = Zero :. Nil
+roundCents (x :. y :. xs) = x :. y :. Nil
+
+showTens prefix digit suffix = prefix ++ "-" ++ showDigit digit ++ " " ++ suffix
+
+showTeens Zero suffix = "ten " ++ suffix
+showTeens One suffix = "eleven " ++ suffix
+showTeens Two suffix = "twelve " ++ suffix
+showTeens Three suffix = "thirteen " ++ suffix
+showTeens Four suffix = "fourteen " ++ suffix
+showTeens Five suffix = "fifteen " ++ suffix
+showTeens Six suffix = "sixteen " ++ suffix
+showTeens Seven suffix = "seventeen " ++ suffix
+showTeens Eight suffix = "eighteen " ++ suffix
+showTeens Nine suffix = "nineteen " ++ suffix
+
+digitsWithSuffix suffix _ (One :. Nil) = showDigit One ++ " " ++ suffix
+digitsWithSuffix _ pluralSuffix (One :. y :. Nil) = showTeens y pluralSuffix
+digitsWithSuffix _ pluralSuffix (Two :. y :. Nil) = showTens "twenty" y pluralSuffix
+digitsWithSuffix _ pluralSuffix (Three :. y :. Nil) = showTens "thirty" y pluralSuffix
+digitsWithSuffix _ pluralSuffix (Four :. y :. Nil) = showTens "forty" y pluralSuffix
+digitsWithSuffix _ pluralSuffix (Five :. y :. Nil) = showTens "fifty" y pluralSuffix
+digitsWithSuffix _ pluralSuffix (Six :. y :. Nil) = showTens "sixty" y pluralSuffix
+digitsWithSuffix _ pluralSuffix (Seven :. y :. Nil) = showTens "seventy" y pluralSuffix
+digitsWithSuffix _ pluralSuffix (Eight :. y :. Nil) = showTens "eighty" y pluralSuffix
+digitsWithSuffix _ pluralSuffix (Nine :. y :. Nil) = showTens "ninety" y pluralSuffix
+digitsWithSuffix _ pluralSuffix (x :. Zero :. Zero :. Nil) = (showDigit x) ++ " hundred " ++ pluralSuffix
+digitsWithSuffix _ pluralSuffix (x :. y :. z :. Nil) = (showDigit x) ++ " hundred and " ++ digitsWithSuffix pluralSuffix pluralSuffix (y :. z :. Nil)
+digitsWithSuffix _ pluralSuffix (xs) = digitsToWords xs ++ " " ++ pluralSuffix
+
+
+print10 prefix Zero = prefix
+print10 prefix digit = prefix ++ "-" ++ showDigit digit
+
+-- | Print up to three digits
+-- 
+-- >>> digit3ToChars (D2 Two Two)
+-- "twenty-two"
+-- >>> digit3ToChars (D3 Two Zero Zero)
+-- "two hundred"
+digit3ToChars :: Digit3 -> Chars
+digit3ToChars (D1 a) = showDigit a
+digit3ToChars (D2 One Zero) = "ten"
+digit3ToChars (D2 One One) = "eleven"
+digit3ToChars (D2 One Two) = "twelve"
+digit3ToChars (D2 One Three) = "thirteen"
+digit3ToChars (D2 One Four) = "fourteen"
+digit3ToChars (D2 One Five) = "fifteen"
+digit3ToChars (D2 One Six) = "sixteen"
+digit3ToChars (D2 One Seven) = "seventeen"
+digit3ToChars (D2 One Eight) = "eighteen"
+digit3ToChars (D2 Zero a) = digit3ToChars (D1 a)
+digit3ToChars (D2 One Nine) = "nineteen"
+digit3ToChars (D2 Two a) = print10 "twenty" a
+digit3ToChars (D2 Three a) = print10 "thirty" a
+digit3ToChars (D2 Four a) = print10 "forty" a
+digit3ToChars (D2 Five a) = print10 "fifty" a
+digit3ToChars (D2 Six a) = print10 "sixty" a
+digit3ToChars (D2 Seven a) = print10 "seventy" a
+digit3ToChars (D2 Eight a) = print10 "eighty" a
+digit3ToChars (D2 Nine a) = print10 "ninety" a
+digit3ToChars (D3 Zero a b) = digit3ToChars (D2 a b)
+digit3ToChars (D3 a Zero Zero) = (showDigit a) ++ " hundred"
+digit3ToChars (D3 a b c) = (showDigit a) ++ " hundred and " ++ (digit3ToChars (D2 b c))
+
+
+-- | Group into illion groups
+-- 
+-- >>> [("thousand",D1 One),("",D3 Two Three Four)]
+-- [("thousand",D1 One),("",D3 Two Three Four)]
+-- >>> groupIllions $ listh [One]
+-- [("",D1 One)]
+groupIllions :: List Digit -> List (Chars, Digit3)
+groupIllions = (reverse . zip illion . reverse . toDigit3)
+
+intercalate :: Chars -> List Chars -> Chars
+intercalate _ Nil = ""
+intercalate _ (x :. Nil) = x
+intercalate s (x :. xs) = x ++ s ++ (intercalate s xs)
+
+appendSuffix :: Chars -> Chars -> Chars
+appendSuffix Nil xs = xs
+appendSuffix suffix xs = xs ++ " " ++ suffix
+
+printIllions :: List (Chars, Digit3) -> Chars
+printIllions xs = intercalate " " $ map (\(s,d) -> appendSuffix s (digit3ToChars d)) $ filter nonZero xs
+  where 
+   nonZero (_,(D3 Zero Zero Zero)) = False
+   nonZero (_,(D2 Zero Zero)) = False
+   nonZero (_,(D1 Zero)) = False
+   nonZero _ = True
+
+digitListToString :: List Digit -> Chars
+digitListToString Nil = "zero"
+digitListToString (Zero :. Nil) = "zero"
+digitListToString xs = printIllions . groupIllions $ xs
 
 -- | Take a numeric value and produce its English output.
 --
@@ -323,5 +480,12 @@ fromChar _ =
 dollars ::
   Chars
   -> Chars
-dollars =
-  error "todo"
+dollars cs =
+  let
+    (d, c) = parseAmount cs
+    cents = roundCents c
+  in
+   (digitListToString d) ++ " " ++ (suffix d "dollar" "dollars") ++ " and " ++ (digitListToString cents) ++ " " ++ (suffix cents "cent" "cents")
+  where 
+   suffix (One :. Nil) singular _ = singular
+   suffix _ _ plural = plural
